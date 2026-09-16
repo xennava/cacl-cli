@@ -27,7 +27,7 @@ template <typename T, size_t Size> struct Stack {
   size_t size() const { return Size; }
 };
 
-enum class TokenType {
+enum class TokenType : unsigned short {
   empty = 0,
   Float,
   Integer,
@@ -48,82 +48,93 @@ enum class TokenType {
 
 struct Token {
   TokenType type;
-  unsigned int start = 0;
-  unsigned int len = 0;
+  unsigned short start = 0;
+  unsigned short len = 0;
 };
+
+TokenType getTokenType(char &c) {
+  using enum TokenType;
+  if (c <= '9' && c >= '0') {
+    return NUMBER;
+  }
+  switch (c) {
+  case '.':
+    return DOT;
+    break;
+  case '+':
+    return Plus;
+    break;
+  case '-':
+    return Minus;
+    break;
+  case '*':
+    return Multiply;
+    break;
+  case '/':
+  case ':':
+    return Divide;
+    break;
+  case '(':
+    return LParenth;
+    break;
+  case ')':
+    return RParenth;
+    break;
+  case '=':
+    return Equal;
+    break;
+  case 'x':
+    return x;
+    break;
+  case 'y':
+    return y;
+    break;
+  case 'z':
+    return z;
+    break;
+  case ' ':
+    return WHITESPACE;
+  default:
+    return empty;
+    break;
+  }
+}
 
 template <std::size_t N> void lexer(std::string &b, Stack<Token, N> &tokens) {
   using enum TokenType;
 
   Token t;
-  TokenType prev = empty, next = empty;
-  bool isTokenChanged = false;
-  bool save = false;
+  TokenType next = empty, now = getTokenType(b[0]);
+  bool save = true;
+  bool atEnd = false;
   for (int i = 0; i < b.size(); i++) {
-    prev = next;
+    atEnd = (i == b.size() - 1);
+    t.type = now;
 
-    char &c = b[i];
-    if (c <= '9' && c >= '0') {
-      t.type = Integer;
-    }
+    char cb;
+    if (!atEnd)
+      cb = b[i + 1];
 
-    switch (c) {
-    case '.':
-      t.type = DOT;
-      break;
-    case '+':
-      t.type = Plus;
-      break;
-    case '-':
-      t.type = Minus;
-      break;
-    case '*':
-      t.type = Multiply;
-      break;
-    case '/':
-    case ':':
-      t.type = Divide;
-      break;
-    case '(':
-      t.type = LParenth;
-      break;
-    case ')':
-      t.type = RParenth;
-      break;
-    case '=':
-      t.type = Equal;
-      break;
-    case 'x':
-      t.type = x;
-      break;
-    case 'y':
-      t.type = y;
-      break;
-    case 'z':
-      t.type = z;
-      break;
-    case ' ':
-      t.type = WHITESPACE;
-    default:
-      break;
-    }
+    next = getTokenType(cb);
 
-    next = t.type;
-    isTokenChanged = (next != prev);
+    t.len++;
 
-    if (t.type == Integer || t.type == Float ||
-        ((prev == Integer || prev == Float) && t.type == DOT))
-      t.len++;
-    else {
-      t.len = 1;
-    }
+    if ((now == NUMBER || now == DOT) && next == NUMBER && !atEnd)
+      save = false;
+    else
+      save = true;
 
-    if (isTokenChanged || b[i + 1] == ' ') {
+    printf("%d: %d | save: %d | atEnd: %d\n", i, now, save, atEnd);
+
+    now = next;
+
+    if (save) {
+      tokens.push(t);
+      t.len = 0;
+      t.start = i + 1;
+      t.type = empty;
       save = true;
     }
-
-    if (save)
-      tokens.push(t);
   }
 }
 Stack<Token, 32> tokens;
@@ -135,7 +146,7 @@ int main(int argc, char *argv[]) {
   lexer(expressionBuffer, tokens);
 
   for (int i = 0; i < tokens.count; i++) {
-    printf("TokenType: %d | start: %d | len: %d\n",
+    printf("TokenType: %d   | start: %d | len: %d\n",
            static_cast<int>(tokens.buffer[i].type), tokens.buffer[i].start,
            tokens.buffer[i].len);
   }
